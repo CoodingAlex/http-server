@@ -7,10 +7,14 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+char *getpath(char *req);
+
 int main() {
   // Disable output buffering
   setbuf(stdout, NULL);
   int new_sock;
+  ssize_t valread;
+  char buffer[1024] = {0};
 
   // You can use print statements as follows for debugging, they'll be visible
   // when running tests.
@@ -59,13 +63,54 @@ int main() {
     exit(EXIT_FAILURE);
   }
 
-  char* res = "HTTP/1.1 200 OK\r\n\r\n";
 
-  send(new_sock, res, strlen(res), 0);
+  valread = read(new_sock, buffer, 1024 - 1);
+  char *r = getpath(buffer);
+
+  if (strcmp(r, "/") == 0) {
+    char *res = "HTTP/1.1 200 OK\r\n\r\n";
+    send(new_sock, res, strlen(res), 0);
+  } else {
+    char *res = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
+    send(new_sock, res, strlen(res), 0);
+  }
+  printf("%s\n", r);
 
   printf("Client connected\n");
 
   close(server_fd);
+  free(r);
 
   return 0;
+}
+
+char *getpath(char *req) {
+  const char *start = req;
+
+  while (*start && *start != '/') {
+    start++;
+  }
+
+  const char *end = start;
+
+  while (*end && *end != ' ') {
+    end++;
+  }
+
+  size_t length = end - start;
+
+  char *path = malloc(length);
+
+  if (!path) {
+    return NULL;
+  }
+
+  char *p = path;
+
+  while (start < end) {
+    *p++ = *start++;
+  }
+  *p = '\0';
+
+  return path;
 }
