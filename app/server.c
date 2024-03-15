@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 char *getpath(char *req);
+int getpaths(char *fp, char *paths[24]);
 
 int main() {
   // Disable output buffering
@@ -63,27 +64,50 @@ int main() {
     exit(EXIT_FAILURE);
   }
 
-
   valread = read(new_sock, buffer, 1024 - 1);
   char *r = getpath(buffer);
+
+  printf("%s\n", r);
+  char *paths[24] = {NULL};
+  int l = getpaths(r, paths);
+  int i;
+  // for (i = 0; i < l; i++) {
+  //   printf("path segment: %s\n", paths[i]);
+  // }
 
   if (strcmp(r, "/") == 0) {
     char *res = "HTTP/1.1 200 OK\r\n\r\n";
     send(new_sock, res, strlen(res), 0);
+  } else if (strcmp(paths[0], "echo") == 0) {
+    if (paths[1]) {
+      char resbuffer[1024];
+      strcpy(resbuffer, "HTTP/1.1 200 OK\r\nContent-Type: "
+                        "text/plain\r\nContent-Length: 3\r\n\r\n");
+
+      char *echoRes = malloc(strlen(paths[1]) + 5);
+
+      strcpy(echoRes, paths[1]);
+      strcat(echoRes, "\r\n");
+      strcat(resbuffer, echoRes);
+      send(new_sock, resbuffer, strlen(resbuffer), 0);
+    }
+
   } else {
     char *res = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
     send(new_sock, res, strlen(res), 0);
   }
-  printf("%s\n", r);
 
   printf("Client connected\n");
 
   close(server_fd);
   free(r);
 
+  for (i = 0; i < l; i++) {
+    free(paths[i]);
+  }
+
   return 0;
 }
-
 char *getpath(char *req) {
   const char *start = req;
 
@@ -107,10 +131,42 @@ char *getpath(char *req) {
 
   char *p = path;
 
+  start++;
   while (start < end) {
     *p++ = *start++;
   }
   *p = '\0';
 
   return path;
+}
+
+int getpaths(char *fp, char *paths[24]) {
+  char *start = fp;
+  int i = 0;
+  while (1) {
+    char *end;
+    end = strchr(start, '/');
+    if (end == NULL) {
+      char nchar = *start;
+      printf("%s\n", start);
+      if (nchar == '\0' || nchar == ' ') {
+        break;
+      }
+      end = start;
+      while (*(++end) != '\0')
+        ;
+    }
+
+    int len = end - start;
+    paths[i] = malloc(len + 4);
+    char *pp = paths[i];
+
+    while (start < end) {
+      *pp++ = *start++;
+    }
+    *pp++ = '\0';
+    ++start;
+    i++;
+  }
+  return i;
 }
