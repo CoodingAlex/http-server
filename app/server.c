@@ -81,14 +81,12 @@ int main() {
   } else if (strcmp(paths[0], "echo") == 0) {
     if (paths[1]) {
       char resbuffer[1024];
-      strcpy(resbuffer, "HTTP/1.1 200 OK\r\nContent-Type: "
-                        "text/plain\r\nContent-Length: 3\r\n\r\n");
 
-      char *echoRes = malloc(strlen(paths[1]) + 10);
+      sprintf(resbuffer,
+              "HTTP/1.1 200 OK\r\nContent-Type: "
+              "text/plain\r\nContent-Length: %lu\r\n\r\n%s",
+              strlen(paths[1]), paths[1]);
 
-      strcpy(echoRes, paths[1]);
-      strcat(echoRes, "\r\n\r\n");
-      strcat(resbuffer, echoRes);
       send(new_sock, resbuffer, strlen(resbuffer), 0);
     }
 
