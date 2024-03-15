@@ -71,9 +71,9 @@ int main() {
   char *paths[24] = {NULL};
   int l = getpaths(r, paths);
   int i;
-  // for (i = 0; i < l; i++) {
-  //   printf("path segment: %s\n", paths[i]);
-  // }
+  for (i = 0; i < l; i++) {
+    printf("path segment: %s\n", paths[i]);
+  }
 
   if (strcmp(r, "/") == 0) {
     char *res = "HTTP/1.1 200 OK\r\n\r\n";
@@ -84,10 +84,10 @@ int main() {
       strcpy(resbuffer, "HTTP/1.1 200 OK\r\nContent-Type: "
                         "text/plain\r\nContent-Length: 3\r\n\r\n");
 
-      char *echoRes = malloc(strlen(paths[1]) + 5);
+      char *echoRes = malloc(strlen(paths[1]) + 10);
 
       strcpy(echoRes, paths[1]);
-      strcat(echoRes, "\r\n");
+      strcat(echoRes, "\r\n\r\n");
       strcat(resbuffer, echoRes);
       send(new_sock, resbuffer, strlen(resbuffer), 0);
     }
