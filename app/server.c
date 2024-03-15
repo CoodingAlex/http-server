@@ -10,11 +10,11 @@
 int main() {
   // Disable output buffering
   setbuf(stdout, NULL);
+  int new_sock;
 
   // You can use print statements as follows for debugging, they'll be visible
   // when running tests.
   printf("Logs from your program will appear here!\n");
-
 
   // Uncomment this block to pass the first stage
   int server_fd, client_addr_len;
@@ -53,7 +53,16 @@ int main() {
   printf("Waiting for a client to connect...\n");
   client_addr_len = sizeof(client_addr);
 
-  accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+  if ((new_sock = accept(server_fd, (struct sockaddr *)&client_addr,
+                         &client_addr_len)) < 0) {
+    perror("accept");
+    exit(EXIT_FAILURE);
+  }
+
+  char* res = "HTTP/1.1 200 OK\r\n\r\n";
+
+  send(new_sock, res, strlen(res), 0);
+
   printf("Client connected\n");
 
   close(server_fd);
