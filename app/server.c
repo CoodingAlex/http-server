@@ -9,6 +9,7 @@
 
 char *getpath(char *req);
 int getpaths(char *fp, char *paths[24]);
+char *substr(char *str, int start);
 
 int main() {
   // Disable output buffering
@@ -82,22 +83,31 @@ int main() {
   char path_tokens[1024][1024];
 
   char *path_token = strtok(path, "/");
+  if (path_token == NULL) {
+    strcpy(path_tokens[0], "/");
+  }
+
   while (path_token != NULL) {
     strcpy(path_tokens[idx], path_token);
     path_token = strtok(NULL, "/");
     idx++;
   }
 
-  if (strcmp(path_tokens[0], "/") == 0) {
+  printf("%s\n", path_tokens[0]);
+
+  if (strcmp(path_tokens[0], "/") == 0 || path_tokens[0] == NULL) {
     printf("HOLA");
     char *res = "HTTP/1.1 200 OK\r\n\r\n";
     send(new_sock, res, strlen(res), 0);
   } else if (strcmp(path_tokens[0], "echo") == 0) {
     char *res;
+    char *echo_cmd = substr(header_tokens[1], 6);
+    printf("sub: %s\n", echo_cmd);
     int size = asprintf(&res,
-                        "HTTP/1.1 200 OK\r\n\r\nContent-Type: "
+                        "HTTP/1.1 200 OK\r\nContent-Type: "
                         "text/plain\r\nContent-Length: %ld\r\n\r\n%s",
-                        strlen(header_tokens[1]), header_tokens[1]);
+                        strlen(echo_cmd), echo_cmd);
+
     send(new_sock, res, strlen(res), 0);
   } else {
     char *res = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
@@ -109,4 +119,15 @@ int main() {
   close(server_fd);
 
   return 0;
+}
+
+char *substr(char *str, int start) {
+  char *new_str = malloc(((strlen(str) - start) * sizeof(char)) + 1);
+  char *s = new_str;
+  int i;
+  for (i = 0; str[i + start] != '\0'; *s = str[i + start], i++, s++)
+    ;
+  *s = '\0';
+
+  return new_str;
 }
