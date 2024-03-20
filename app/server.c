@@ -93,8 +93,6 @@ int main() {
     idx++;
   }
 
-  printf("%s\n", path_tokens[0]);
-
   if (strcmp(path_tokens[0], "/") == 0 || path_tokens[0] == NULL) {
     printf("HOLA");
     char *res = "HTTP/1.1 200 OK\r\n\r\n";
@@ -107,6 +105,14 @@ int main() {
                         "HTTP/1.1 200 OK\r\nContent-Type: "
                         "text/plain\r\nContent-Length: %ld\r\n\r\n%s",
                         strlen(echo_cmd), echo_cmd);
+
+    send(new_sock, res, strlen(res), 0);
+  } else if (strcmp(path_tokens[0], "user-agent") == 0) {
+    char *res;
+    int size = asprintf(&res,
+                        "HTTP/1.1 200 OK\r\nContent-Type: "
+                        "text/plain\r\nContent-Length: %ld\r\n\r\n%s",
+                        strlen(header_tokens[6]), header_tokens[6]);
 
     send(new_sock, res, strlen(res), 0);
   } else {
