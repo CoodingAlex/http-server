@@ -65,31 +65,40 @@ int main() {
   }
 
   valread = read(new_sock, buffer, 1024 - 1);
-  char *r = getpath(buffer);
 
-  printf("%s\n", r);
-  char *paths[24] = {NULL};
-  int l = getpaths(r, paths);
-  int i;
-  for (i = 0; i < l; i++) {
-    printf("path segment: %s\n", paths[i]);
+  char header_tokens[1024][1024];
+  char *header_token = strtok(buffer, " \r\n");
+
+  int idx = 0;
+  while (header_token != NULL) {
+    strcpy(header_tokens[idx], header_token);
+    header_token = strtok(NULL, " \r\n");
+    idx++;
+  }
+  idx = 0;
+
+  char path[strlen(header_tokens[1]) + 1];
+  strcpy(path, header_tokens[1]);
+  char path_tokens[1024][1024];
+
+  char *path_token = strtok(path, "/");
+  while (path_token != NULL) {
+    strcpy(path_tokens[idx], path_token);
+    path_token = strtok(NULL, "/");
+    idx++;
   }
 
-  if (strcmp(r, "/") == 0) {
+  if (strcmp(path_tokens[0], "/") == 0) {
+    printf("HOLA");
     char *res = "HTTP/1.1 200 OK\r\n\r\n";
     send(new_sock, res, strlen(res), 0);
-  } else if (strcmp(paths[0], "echo") == 0) {
-    if (paths[1]) {
-      char resbuffer[1024];
-
-      sprintf(resbuffer,
-              "HTTP/1.1 200 OK\r\nContent-Type: "
-              "text/plain\r\nContent-Length: %lu\r\n\r\n%s",
-              strlen(paths[1]), paths[1]);
-
-      send(new_sock, resbuffer, strlen(resbuffer), 0);
-    }
-
+  } else if (strcmp(path_tokens[0], "echo") == 0) {
+    char *res;
+    int size = asprintf(&res,
+                        "HTTP/1.1 200 OK\r\n\r\nContent-Type: "
+                        "text/plain\r\nContent-Length: %ld\r\n\r\n%s",
+                        strlen(header_tokens[1]), header_tokens[1]);
+    send(new_sock, res, strlen(res), 0);
   } else {
     char *res = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
     send(new_sock, res, strlen(res), 0);
@@ -98,73 +107,6 @@ int main() {
   printf("Client connected\n");
 
   close(server_fd);
-  free(r);
-
-  for (i = 0; i < l; i++) {
-    free(paths[i]);
-  }
 
   return 0;
-}
-char *getpath(char *req) {
-  const char *start = req;
-
-  while (*start && *start != '/') {
-    start++;
-  }
-
-  const char *end = start;
-
-  while (*end && *end != ' ') {
-    end++;
-  }
-
-  size_t length = end - start;
-
-  char *path = malloc(length);
-
-  if (!path) {
-    return NULL;
-  }
-
-  char *p = path;
-
-  start++;
-  while (start < end) {
-    *p++ = *start++;
-  }
-  *p = '\0';
-
-  return path;
-}
-
-int getpaths(char *fp, char *paths[24]) {
-  char *start = fp;
-  int i = 0;
-  while (1) {
-    char *end;
-    end = strchr(start, '/');
-    if (end == NULL) {
-      char nchar = *start;
-      printf("%s\n", start);
-      if (nchar == '\0' || nchar == ' ') {
-        break;
-      }
-      end = start;
-      while (*(++end) != '\0')
-        ;
-    }
-
-    int len = end - start;
-    paths[i] = malloc(len + 4);
-    char *pp = paths[i];
-
-    while (start < end) {
-      *pp++ = *start++;
-    }
-    *pp++ = '\0';
-    ++start;
-    i++;
-  }
-  return i;
 }
