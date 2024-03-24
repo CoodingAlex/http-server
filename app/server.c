@@ -131,10 +131,11 @@ void handle_request(int sock, char buffer[1024], int argc, char *argv[]) {
   if (bodyp != NULL) {
     body = malloc(strlen(bodyp) + 1);
     bodyp += 4;
-    strcpy(body, bodyp);
+    strncpy(body, bodyp, strlen(bodyp) + 1);
   }
   printf("body: %s\n", body);
   char *header_token = strtok(buffer, " \r\n");
+
 
   int idx = 0;
   while (header_token != NULL) {
@@ -217,6 +218,9 @@ void handle_request(int sock, char buffer[1024], int argc, char *argv[]) {
       char *file_path = malloc(strlen(dir_path) + strlen(path_tokens[1]) + 2);
       if (file_path == NULL) {
         printf("ERROR ALLOCATING FILEPATH\n");
+        if( body != NULL) {
+          free(body);
+        }
         return;
       }
       if (dir_path[strlen(dir_path) - 1] != '/') {
@@ -246,6 +250,12 @@ void handle_request(int sock, char buffer[1024], int argc, char *argv[]) {
         send(sock, res, strlen(res), 0);
         free(file_path);
         free(file_buffer);
+        if (f != NULL) {
+          fclose(f);
+        }
+        if(body != NULL) {
+          free(body);
+        }
         return;
       }
       if (file_buffer) {
@@ -275,5 +285,8 @@ void handle_request(int sock, char buffer[1024], int argc, char *argv[]) {
   } else {
     char *res = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
     send(sock, res, strlen(res), 0);
+  }
+  if(body != NULL) {
+    free(body);
   }
 }
