@@ -1,0 +1,4 @@
+11hola como se encuentran
+espero que todo bien
+todo super
+esto es una prueba de mandar un archivo en c

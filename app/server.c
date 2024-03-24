@@ -14,13 +14,12 @@ char *getpath(char *req);
 int getpaths(char *fp, char *paths[24]);
 char *substr(char *str, int start);
 
-void handleRequest(int sock, char buffer[1024]);
+void handle_request(int sock, char buffer[1024], int argc, char *argv[]);
 
-int main() {
-  // Disable output buffering
+int main(int argc, char *argv[]) {
   setbuf(stdout, NULL);
-  int master_socket, new_socket, 
-      max_clients = 30, client_socks[30], activity, i, sd, client_addr_len;
+  int master_socket, new_socket, max_clients = 30, client_socks[30], activity,
+                                 i, sd, client_addr_len;
   ssize_t valread;
   int max_sd;
   char buffer[1024] = {0};
@@ -77,7 +76,7 @@ int main() {
     sockets = readsfs;
 
     activity = select(FD_SETSIZE, &sockets, NULL, NULL, NULL);
-    if(activity < 0) {
+    if (activity < 0) {
       printf("select error\n");
     }
 
@@ -99,9 +98,10 @@ int main() {
         } else {
           valread = read(i, buffer, 1024);
           printf("HANDLE REQUEST\n");
-          handleRequest(i, buffer);
+          handle_request(i, buffer, argc, argv);
           puts("Response sent correctly");
           close(i);
+          memset(buffer, 0, 1024);
           FD_CLR(i, &readsfs);
         }
       }
@@ -124,7 +124,7 @@ char *substr(char *str, int start) {
   return new_str;
 }
 
-void handleRequest(int sock, char buffer[1024]) {
+void handle_request(int sock, char buffer[1024], int argc, char *argv[]) {
   char header_tokens[1024][1024];
   char *header_token = strtok(buffer, " \r\n");
 
@@ -164,6 +164,58 @@ void handleRequest(int sock, char buffer[1024]) {
                         strlen(echo_cmd), echo_cmd);
 
     send(sock, res, strlen(res), 0);
+    free(echo_cmd);
+  } else if (strcmp(path_tokens[0], "files") == 0) {
+    if (argc == 3) {
+      char *dir_path = argv[2];
+      char *dir_arg;
+      char *file_path = malloc(strlen(dir_path) + strlen(path_tokens[1]) + 2);
+      if (file_path == NULL) {
+        printf("ERROR ALLOCATING FILEPATH\n");
+        return;
+      }
+      if (dir_path[strlen(dir_path) - 1] != '/') {
+        snprintf(file_path, strlen(dir_path) + strlen(path_tokens[1]) + 2,
+                 "%s/%s", dir_path, path_tokens[1]);
+      } else {
+        snprintf(file_path, strlen(dir_path) + strlen(path_tokens[1]) + 2,
+                 "%s%s", dir_path, path_tokens[1]);
+      }
+
+      char *file_buffer;
+      long length;
+      FILE *f = fopen(file_path, "r");
+
+      if (f != NULL) {
+        fseek(f, 0, SEEK_END);
+        length = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        file_buffer = malloc(length);
+        printf("len %ld\n", length);
+        if (file_buffer) {
+          fread(file_buffer, 1, length, f);
+        }
+        fclose(f);
+      } else {
+        char *res = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
+        send(sock, res, strlen(res), 0);
+        return;
+      }
+      if (file_buffer) {
+        char *res;
+        int size = asprintf(
+            &res,
+            "HTTP/1.1 200 OK\r\nContent-Type: "
+            "application/octet-stream\r\nContent-Length: %ld\r\n\r\n%s",
+            strlen(file_buffer), file_buffer);
+        free(file_buffer);
+        send(sock, res, strlen(res), 0);
+      }
+    } else {
+      char *res = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
+      send(sock, res, strlen(res), 0);
+    }
+
   } else if (strcmp(path_tokens[0], "user-agent") == 0) {
     char *res;
     int size = asprintf(&res,
