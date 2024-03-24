@@ -97,7 +97,6 @@ int main(int argc, char *argv[]) {
           FD_SET(client_socket, &readsfs);
         } else {
           valread = read(i, buffer, 1024);
-          printf("HANDLE REQUEST\n");
           handle_request(i, buffer, argc, argv);
           puts("Response sent correctly");
           close(i);
@@ -126,6 +125,15 @@ char *substr(char *str, int start) {
 
 void handle_request(int sock, char buffer[1024], int argc, char *argv[]) {
   char header_tokens[1024][1024];
+  printf("%s\n---------------------\n", buffer);
+  char *bodyp = strstr(buffer, "\r\n\r\n");
+  char *body;
+  if (bodyp != NULL) {
+    body = malloc(strlen(bodyp) + 1);
+    bodyp += 4;
+    strcpy(body, bodyp);
+  }
+  printf("body: %s\n", body);
   char *header_token = strtok(buffer, " \r\n");
 
   int idx = 0;
@@ -134,6 +142,7 @@ void handle_request(int sock, char buffer[1024], int argc, char *argv[]) {
     header_token = strtok(NULL, " \r\n");
     idx++;
   }
+
   idx = 0;
 
   char path[strlen(header_tokens[1]) + 1];
@@ -165,7 +174,43 @@ void handle_request(int sock, char buffer[1024], int argc, char *argv[]) {
 
     send(sock, res, strlen(res), 0);
     free(echo_cmd);
-  } else if (strcmp(path_tokens[0], "files") == 0) {
+  } else if (strcmp(path_tokens[0], "files") == 0 &&
+             strcmp(header_tokens[0], "POST") == 0) {
+    if (argc == 3) {
+      char *dir_path = argv[2];
+      char *dir_arg;
+      char *file_path = malloc(strlen(dir_path) + strlen(path_tokens[1]) + 2);
+      if (file_path == NULL) {
+        printf("ERROR ALLOCATING FILEPATH\n");
+        return;
+      }
+      if (dir_path[strlen(dir_path) - 1] != '/') {
+        snprintf(file_path, strlen(dir_path) + strlen(path_tokens[1]) + 2,
+                 "%s/%s", dir_path, path_tokens[1]);
+      } else {
+        snprintf(file_path, strlen(dir_path) + strlen(path_tokens[1]) + 2,
+                 "%s%s", dir_path, path_tokens[1]);
+      }
+
+      FILE *f = fopen(file_path, "w");
+
+      if (f != NULL) {
+        printf("body: %s\n", body);
+        fprintf(f, "%s", body);
+        fclose(f);
+        char *res = "HTTP/1.1 201 CREATED\r\n\r\n";
+        send(sock, res, strlen(res), 0);
+      } else {
+        char *res = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
+        send(sock, res, strlen(res), 0);
+        free(file_path);
+        return;
+      }
+      free(file_path);
+    }
+
+  } else if (strcmp(path_tokens[0], "files") == 0 &&
+             strcmp(header_tokens[0], "GET") == 0) {
     if (argc == 3) {
       char *dir_path = argv[2];
       char *dir_arg;
@@ -199,6 +244,8 @@ void handle_request(int sock, char buffer[1024], int argc, char *argv[]) {
       } else {
         char *res = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
         send(sock, res, strlen(res), 0);
+        free(file_path);
+        free(file_buffer);
         return;
       }
       if (file_buffer) {
@@ -208,9 +255,10 @@ void handle_request(int sock, char buffer[1024], int argc, char *argv[]) {
             "HTTP/1.1 200 OK\r\nContent-Type: "
             "application/octet-stream\r\nContent-Length: %ld\r\n\r\n%s",
             strlen(file_buffer), file_buffer);
-        free(file_buffer);
         send(sock, res, strlen(res), 0);
       }
+      free(file_path);
+      free(file_buffer);
     } else {
       char *res = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
       send(sock, res, strlen(res), 0);
